@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invaders</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #000;
+            font-family: 'Courier New', monospace;
+        }
+        #gameContainer {
+            text-align: center;
+        }
+        #gameCanvas {
+            border: 2px solid #0f0;
+            background: #000;
+        }
+        #score {
+            color: #0f0;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        #message {
+            color: #0f0;
+            font-size: 20px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">SCORE: 0</div>
+        <canvas id="gameCanvas" width="600" height="500"></canvas>
+        <div id="message">← → で移動 / スペースで発射 / Rでリスタート</div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const messageElement = document.getElementById('message');
+
+        // ゲーム状態
+        let score = 0;
+        let gameOver = false;
+        let gameWon = false;
+
+        // プレイヤー
+        const player = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 50,
+            width: 50,
+            height: 20,
+            speed: 7,
+            color: '#0f0'
+        };
+
+        // 弾
+        let bullets = [];
+        const bulletSpeed = 8;
+
+        // インベーダー
+        let invaders = [];
+        const invaderRows = 4;
+        const invaderCols = 8;
+        const invaderWidth = 40;
+        const invaderHeight = 30;
+        let invaderDirection = 1;
+        let invaderSpeed = 1;
+
+        // インベーダーの弾
+        let enemyBullets = [];
+        const enemyBulletSpeed = 4;
+
+        // キー入力
+        const keys = {
+            left: false,
+            right: false,
+            space: false
+        };
+
+        // インベーダー初期化
+        function initInvaders() {
+            invaders = [];
+            for (let row = 0; row < invaderRows; row++) {
+                for (let col = 0; col < invaderCols; col++) {
+                    invaders.push({
+                        x: col * (invaderWidth + 15) + 50,
+                        y: row * (invaderHeight + 10) + 40,
+                        width: invaderWidth,
+                        height: invaderHeight,
+                        alive: true
+                    });
+                }
+            }
+        }
+
+        // ゲームリセット
+        function resetGame() {
+            score = 0;
+            gameOver = false;
+            gameWon = false;
+            player.x = canvas.width / 2 - 25;
+            bullets = [];
+            enemyBullets = [];
+            invaderDirection = 1;
+            invaderSpeed = 1;
+            initInvaders();
+            messageElement.textContent = '← → で移動 / スペースで発射 / Rでリスタート';
+        }
+
+        // プレイヤー描画
+        function drawPlayer() {
+            ctx.fillStyle = player.color;
+            // 本体
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // 砲台
+            ctx.fillRect(player.x + 20, player.y - 10, 10, 10);
+        }
+
+        // インベーダー描画
+        function drawInvaders() {
+            invaders.forEach(invader => {
+                if (invader.alive) {
+                    ctx.fillStyle = '#f00';
+                    // 本体
+                    ctx.fillRect(invader.x + 5, invader.y + 5, invader.width - 10, invader.height - 10);
+                    // 触角
+                    ctx.fillRect(invader.x, invader.y, 8, 8);
+                    ctx.fillRect(invader.x + invader.width - 8, invader.y, 8, 8);
+                    // 足
+                    ctx.fillRect(invader.x + 5, invader.y + invader.height - 5, 8, 5);
+                    ctx.fillRect(invader.x + invader.width - 13, invader.y + invader.height - 5, 8, 5);
+                }
+            });
+        }
+
+        // 弾描画
+        function drawBullets() {
+            ctx.fillStyle = '#ff0';
+            bullets.forEach(bullet => {
+                ctx.fillRect(bullet.x, bullet.y, 4, 15);
+            });
+
+            ctx.fillStyle = '#f0f';
+            enemyBullets.forEach(bullet => {
+                ctx.fillRect(bullet.x, bullet.y, 4, 15);
+            });
+        }
+
+        // プレイヤー移動
+        function movePlayer() {
+            if (keys.left && player.x > 0) {
+                player.x -= player.speed;
+            }
+            if (keys.right && player.x < canvas.width - player.width) {
+                player.x += player.speed;
+            }
+        }
+
+        // 弾移動
+        function moveBullets() {
+            bullets = bullets.filter(bullet => {
+                bullet.y -= bulletSpeed;
+                return bullet.y > 0;
+            });
+
+            enemyBullets = enemyBullets.filter(bullet => {
+                bullet.y += enemyBulletSpeed;
+                return bullet.y < canvas.height;
+            });
+        }
+
+        // インベーダー移動
+        function moveInvaders() {
+            let shouldDescend = false;
+
+            invaders.forEach(invader => {
+                if (invader.alive) {
+                    invader.x += invaderSpeed * invaderDirection;
+                    if (invader.x <= 0 || invader.x + invader.width >= canvas.width) {
+                        shouldDescend = true;
+                    }
+                }
+            });
+
+            if (shouldDescend) {
+                invaderDirection *= -1;
+                invaders.forEach(invader => {
+                    invader.y += 20;
+                    // プレイヤーラインに到達したらゲームオーバー
+                    if (invader.alive && invader.y + invader.height >= player.y) {
+                        gameOver = true;
+                    }
+                });
+            }
+        }
+
+        // インベーダーの攻撃
+        function invaderShoot() {
+            const aliveInvaders = invaders.filter(inv => inv.alive);
+            if (aliveInvaders.length > 0 && Math.random() < 0.02) {
+                const shooter = aliveInvaders[Math.floor(Math.random() * aliveInvaders.length)];
+                enemyBullets.push({
+                    x: shooter.x + shooter.width / 2,
+                    y: shooter.y + shooter.height
+                });
+            }
+        }
+
+        // 衝突判定
+        function checkCollisions() {
+            // プレイヤーの弾とインベーダー
+            bullets.forEach((bullet, bulletIndex) => {
+                invaders.forEach(invader => {
+                    if (invader.alive &&
+                        bullet.x < invader.x + invader.width &&
+                        bullet.x + 4 > invader.x &&
+                        bullet.y < invader.y + invader.height &&
+                        bullet.y + 15 > invader.y) {
+                        invader.alive = false;
+                        bullets.splice(bulletIndex, 1);
+                        score += 100;
+                    }
+                });
+            });
+
+            // 敵の弾とプレイヤー
+            enemyBullets.forEach((bullet, index) => {
+                if (bullet.x < player.x + player.width &&
+                    bullet.x + 4 > player.x &&
+                    bullet.y < player.y + player.height &&
+                    bullet.y + 15 > player.y) {
+                    gameOver = true;
+                }
+            });
+
+            // 全滅チェック
+            if (invaders.every(inv => !inv.alive)) {
+                gameWon = true;
+            }
+        }
+
+        // ゲームループ
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!gameOver && !gameWon) {
+                movePlayer();
+                moveBullets();
+                moveInvaders();
+                invaderShoot();
+                checkCollisions();
+            }
+
+            drawPlayer();
+            drawInvaders();
+            drawBullets();
+
+            scoreElement.textContent = `SCORE: ${score}`;
+
+            if (gameOver) {
+                ctx.fillStyle = '#f00';
+                ctx.font = '48px Courier New';
+                ctx.fillText('GAME OVER', canvas.width / 2 - 130, canvas.height / 2);
+                messageElement.textContent = 'Rキーでリスタート';
+            } else if (gameWon) {
+                ctx.fillStyle = '#0f0';
+                ctx.font = '48px Courier New';
+                ctx.fillText('YOU WIN!', canvas.width / 2 - 100, canvas.height / 2);
+                messageElement.textContent = 'Rキーでリスタート';
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // キーイベント
+        let canShoot = true;
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'ArrowRight') keys.right = true;
+            if (e.key === ' ' && canShoot && !gameOver && !gameWon) {
+                bullets.push({
+                    x: player.x + player.width / 2 - 2,
+                    y: player.y - 15
+                });
+                canShoot = false;
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                resetGame();
+            }
+            e.preventDefault();
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'ArrowRight') keys.right = false;
+            if (e.key === ' ') canShoot = true;
+        });
+
+        // ゲーム開始
+        initInvaders();
+        gameLoop();
+    </script>
+</body>
+</html>
