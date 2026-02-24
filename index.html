@@ -236,7 +236,7 @@
             y: canvas.height - 50,
             width: 50,
             height: 20,
-            speed: 7,
+            speed: 5,
             color: '#0f0'
         };
 
@@ -246,16 +246,18 @@
 
         // インベーダー
         let invaders = [];
-        const invaderRows = 4;
         const invaderCols = 8;
         const invaderWidth = 40;
         const invaderHeight = 30;
         let invaderDirection = 1;
         let invaderSpeed = 1;
+        const totalEnemies = 100;
+        let killCount = 0;
+        let spawnedCount = 0;
 
         // インベーダーの弾
         let enemyBullets = [];
-        const enemyBulletSpeed = 4;
+        const enemyBulletSpeed = 1.5;
 
         // キー入力
         const keys = {
@@ -264,19 +266,41 @@
             space: false
         };
 
-        // インベーダー初期化
+        // インベーダーを1行分生成
+        function spawnRow(yPos) {
+            const count = Math.min(invaderCols, totalEnemies - spawnedCount);
+            for (let col = 0; col < count; col++) {
+                invaders.push({
+                    x: col * (invaderWidth + 15) + 50,
+                    y: yPos,
+                    width: invaderWidth,
+                    height: invaderHeight,
+                    alive: true
+                });
+                spawnedCount++;
+            }
+        }
+
+        // インベーダー初期化（最初の3行）
         function initInvaders() {
             invaders = [];
-            for (let row = 0; row < invaderRows; row++) {
-                for (let col = 0; col < invaderCols; col++) {
-                    invaders.push({
-                        x: col * (invaderWidth + 15) + 50,
-                        y: row * (invaderHeight + 10) + 40,
-                        width: invaderWidth,
-                        height: invaderHeight,
-                        alive: true
-                    });
-                }
+            spawnedCount = 0;
+            killCount = 0;
+            for (let row = 0; row < 3; row++) {
+                spawnRow(row * (invaderHeight + 10) + 40);
+            }
+        }
+
+        // 倒された分を上から補充
+        function replenishInvaders() {
+            if (spawnedCount >= totalEnemies) return;
+            const aliveInvaders = invaders.filter(inv => inv.alive);
+            if (aliveInvaders.length < 16) {
+                // 一番上の生存インベーダーのY座標を基準に、その上に出す
+                let topY = canvas.height;
+                aliveInvaders.forEach(inv => { if (inv.y < topY) topY = inv.y; });
+                const newY = Math.max(topY - (invaderHeight + 10), -invaderHeight);
+                spawnRow(newY);
             }
         }
 
@@ -343,6 +367,7 @@
             score = 0;
             gameOver = false;
             gameWon = false;
+            killCount = 0;
             player.x = canvas.width / 2 - 25;
             bullets = [];
             enemyBullets = [];
@@ -457,9 +482,13 @@
                         invader.alive = false;
                         bullets.splice(bulletIndex, 1);
                         score += 100;
+                        killCount++;
                     }
                 });
             });
+
+            // 死んだインベーダーを配列から除去（メモリ節約）
+            invaders = invaders.filter(inv => inv.alive);
 
             enemyBullets.forEach((bullet, index) => {
                 if (bullet.x < player.x + player.width &&
@@ -470,7 +499,7 @@
                 }
             });
 
-            if (invaders.every(inv => !inv.alive)) {
+            if (killCount >= totalEnemies) {
                 gameWon = true;
             }
         }
@@ -503,13 +532,14 @@
                 moveInvaders();
                 invaderShoot();
                 checkCollisions();
+                replenishInvaders();
             }
 
             drawPlayer();
             drawInvaders();
             drawBullets();
 
-            scoreElement.textContent = `SCORE: ${score}`;
+            scoreElement.textContent = `SCORE: ${score}  [${killCount}/${totalEnemies}]`;
 
             if (gameOver) {
                 ctx.fillStyle = '#f00';
