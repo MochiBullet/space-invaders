@@ -157,6 +157,8 @@
         let score = 0;
         let gameOver = false;
         let gameWon = false;
+        let gameStarted = false;
+        let titleBlink = 0;
 
         // プレイヤー
         const player = {
@@ -205,6 +207,56 @@
                         alive: true
                     });
                 }
+            }
+        }
+
+        // タイトル画面描画
+        function drawTitleScreen() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // タイトル
+            ctx.fillStyle = '#0f0';
+            ctx.font = 'bold 44px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('SPACE', canvas.width / 2, 140);
+            ctx.fillStyle = '#f00';
+            ctx.fillText('INVADERS', canvas.width / 2, 190);
+
+            // デモ用インベーダー描画
+            const demoInvaders = [
+                { x: 200, y: 240 }, { x: 270, y: 240 }, { x: 340, y: 240 },
+                { x: 235, y: 280 }, { x: 305, y: 280 }
+            ];
+            demoInvaders.forEach(inv => {
+                ctx.fillStyle = '#f00';
+                ctx.fillRect(inv.x + 5, inv.y + 5, 30, 20);
+                ctx.fillRect(inv.x, inv.y, 8, 8);
+                ctx.fillRect(inv.x + 32, inv.y, 8, 8);
+                ctx.fillRect(inv.x + 5, inv.y + 25, 8, 5);
+                ctx.fillRect(inv.x + 27, inv.y + 25, 8, 5);
+            });
+
+            // 点滅するスタートメッセージ
+            titleBlink += 0.05;
+            if (Math.sin(titleBlink) > -0.3) {
+                ctx.fillStyle = '#ff0';
+                ctx.font = '22px Courier New';
+                ctx.fillText('PRESS SPACE TO START', canvas.width / 2, 380);
+            }
+
+            // 操作説明
+            ctx.fillStyle = '#888';
+            ctx.font = '14px Courier New';
+            ctx.fillText('Arrow Keys: Move / Space: Fire / R: Restart', canvas.width / 2, 440);
+
+            ctx.textAlign = 'left';
+        }
+
+        // ゲームスタート
+        function startGame() {
+            if (!gameStarted) {
+                gameStarted = true;
+                resetGame();
             }
         }
 
@@ -347,6 +399,14 @@
 
         // ゲームループ
         function gameLoop() {
+            if (!gameStarted) {
+                drawTitleScreen();
+                scoreElement.textContent = 'SPACE INVADERS';
+                messageElement.textContent = 'Press Space to start';
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             if (!gameOver && !gameWon) {
@@ -366,12 +426,16 @@
             if (gameOver) {
                 ctx.fillStyle = '#f00';
                 ctx.font = '48px Courier New';
-                ctx.fillText('GAME OVER', canvas.width / 2 - 130, canvas.height / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+                ctx.textAlign = 'left';
                 messageElement.textContent = 'R to restart';
             } else if (gameWon) {
                 ctx.fillStyle = '#0f0';
                 ctx.font = '48px Courier New';
-                ctx.fillText('YOU WIN!', canvas.width / 2 - 100, canvas.height / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText('YOU WIN!', canvas.width / 2, canvas.height / 2);
+                ctx.textAlign = 'left';
                 messageElement.textContent = 'R to restart';
             }
 
@@ -381,6 +445,13 @@
         // キーイベント
         let canShoot = true;
         document.addEventListener('keydown', (e) => {
+            if (!gameStarted) {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    startGame();
+                }
+                e.preventDefault();
+                return;
+            }
             if (e.key === 'ArrowLeft') keys.left = true;
             if (e.key === 'ArrowRight') keys.right = true;
             if (e.key === ' ' && canShoot && !gameOver && !gameWon) {
@@ -465,8 +536,18 @@
         });
         btnRestart.addEventListener('click', resetGame);
 
+        // タッチでもスタート可能に
+        canvas.addEventListener('click', () => {
+            if (!gameStarted) startGame();
+        });
+        canvas.addEventListener('touchstart', (e) => {
+            if (!gameStarted) {
+                e.preventDefault();
+                startGame();
+            }
+        });
+
         // ゲーム開始
-        initInvaders();
         gameLoop();
     </script>
 </body>
