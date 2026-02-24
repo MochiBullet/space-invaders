@@ -2,46 +2,150 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Space Invaders</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        html, body {
+            height: 100%;
+            overflow: hidden;
         }
         body {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             background: #000;
             font-family: 'Courier New', monospace;
+            user-select: none;
+            -webkit-user-select: none;
         }
         #gameContainer {
             text-align: center;
-        }
-        #gameCanvas {
-            border: 2px solid #0f0;
-            background: #000;
+            width: 100%;
+            max-width: 600px;
+            padding: 10px;
         }
         #score {
             color: #0f0;
-            font-size: 24px;
+            font-size: clamp(18px, 5vw, 24px);
             margin-bottom: 10px;
+        }
+        #canvasWrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 83.33%;
+        }
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #0f0;
+            background: #000;
         }
         #message {
             color: #0f0;
-            font-size: 20px;
+            font-size: clamp(12px, 3vw, 16px);
             margin-top: 10px;
+            min-height: 20px;
+        }
+        #controls {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            margin-top: 15px;
+            padding: 0 10px;
+        }
+        .control-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid #0f0;
+            background: rgba(0, 255, 0, 0.1);
+            color: #0f0;
+            font-size: 28px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .btn:active, .btn.active {
+            background: rgba(0, 255, 0, 0.4);
+        }
+        .btn-fire {
+            width: 90px;
+            height: 90px;
+            border-color: #f00;
+            background: rgba(255, 0, 0, 0.1);
+            color: #f00;
+            font-size: 16px;
+        }
+        .btn-fire:active, .btn-fire.active {
+            background: rgba(255, 0, 0, 0.4);
+        }
+        .btn-restart {
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            border-color: #ff0;
+            background: rgba(255, 255, 0, 0.1);
+            color: #ff0;
+        }
+        .btn-restart:active {
+            background: rgba(255, 255, 0, 0.4);
+        }
+        @media (pointer: coarse) {
+            #controls {
+                display: flex;
+            }
+            #message {
+                display: none;
+            }
+        }
+        @media (max-width: 400px) {
+            .btn {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            .btn-fire {
+                width: 75px;
+                height: 75px;
+            }
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <div id="score">SCORE: 0</div>
-        <canvas id="gameCanvas" width="600" height="500"></canvas>
-        <div id="message">← → で移動 / スペースで発射 / Rでリスタート</div>
+        <div id="canvasWrapper">
+            <canvas id="gameCanvas" width="600" height="500"></canvas>
+        </div>
+        <div id="message">Arrow keys to move / Space to fire / R to restart</div>
+    </div>
+    <div id="controls">
+        <div class="control-group">
+            <button class="btn" id="btnLeft">&#9664;</button>
+            <button class="btn" id="btnRight">&#9654;</button>
+        </div>
+        <button class="btn btn-restart" id="btnRestart">R</button>
+        <button class="btn btn-fire" id="btnFire">FIRE</button>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -115,15 +219,13 @@
             invaderDirection = 1;
             invaderSpeed = 1;
             initInvaders();
-            messageElement.textContent = '← → で移動 / スペースで発射 / Rでリスタート';
+            messageElement.textContent = 'Arrow keys to move / Space to fire / R to restart';
         }
 
         // プレイヤー描画
         function drawPlayer() {
             ctx.fillStyle = player.color;
-            // 本体
             ctx.fillRect(player.x, player.y, player.width, player.height);
-            // 砲台
             ctx.fillRect(player.x + 20, player.y - 10, 10, 10);
         }
 
@@ -132,12 +234,9 @@
             invaders.forEach(invader => {
                 if (invader.alive) {
                     ctx.fillStyle = '#f00';
-                    // 本体
                     ctx.fillRect(invader.x + 5, invader.y + 5, invader.width - 10, invader.height - 10);
-                    // 触角
                     ctx.fillRect(invader.x, invader.y, 8, 8);
                     ctx.fillRect(invader.x + invader.width - 8, invader.y, 8, 8);
-                    // 足
                     ctx.fillRect(invader.x + 5, invader.y + invader.height - 5, 8, 5);
                     ctx.fillRect(invader.x + invader.width - 13, invader.y + invader.height - 5, 8, 5);
                 }
@@ -197,7 +296,6 @@
                 invaderDirection *= -1;
                 invaders.forEach(invader => {
                     invader.y += 20;
-                    // プレイヤーラインに到達したらゲームオーバー
                     if (invader.alive && invader.y + invader.height >= player.y) {
                         gameOver = true;
                     }
@@ -219,7 +317,6 @@
 
         // 衝突判定
         function checkCollisions() {
-            // プレイヤーの弾とインベーダー
             bullets.forEach((bullet, bulletIndex) => {
                 invaders.forEach(invader => {
                     if (invader.alive &&
@@ -234,7 +331,6 @@
                 });
             });
 
-            // 敵の弾とプレイヤー
             enemyBullets.forEach((bullet, index) => {
                 if (bullet.x < player.x + player.width &&
                     bullet.x + 4 > player.x &&
@@ -244,7 +340,6 @@
                 }
             });
 
-            // 全滅チェック
             if (invaders.every(inv => !inv.alive)) {
                 gameWon = true;
             }
@@ -272,12 +367,12 @@
                 ctx.fillStyle = '#f00';
                 ctx.font = '48px Courier New';
                 ctx.fillText('GAME OVER', canvas.width / 2 - 130, canvas.height / 2);
-                messageElement.textContent = 'Rキーでリスタート';
+                messageElement.textContent = 'R to restart';
             } else if (gameWon) {
                 ctx.fillStyle = '#0f0';
                 ctx.font = '48px Courier New';
                 ctx.fillText('YOU WIN!', canvas.width / 2 - 100, canvas.height / 2);
-                messageElement.textContent = 'Rキーでリスタート';
+                messageElement.textContent = 'R to restart';
             }
 
             requestAnimationFrame(gameLoop);
@@ -306,6 +401,69 @@
             if (e.key === 'ArrowRight') keys.right = false;
             if (e.key === ' ') canShoot = true;
         });
+
+        // タッチ操作
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+        const btnFire = document.getElementById('btnFire');
+        const btnRestart = document.getElementById('btnRestart');
+
+        function addTouchEvents(btn, keyName) {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys[keyName] = true;
+                btn.classList.add('active');
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+                btn.classList.remove('active');
+            });
+            btn.addEventListener('touchcancel', (e) => {
+                keys[keyName] = false;
+                btn.classList.remove('active');
+            });
+        }
+
+        addTouchEvents(btnLeft, 'left');
+        addTouchEvents(btnRight, 'right');
+
+        btnFire.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            btnFire.classList.add('active');
+            if (!gameOver && !gameWon) {
+                bullets.push({
+                    x: player.x + player.width / 2 - 2,
+                    y: player.y - 15
+                });
+            }
+        });
+        btnFire.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            btnFire.classList.remove('active');
+        });
+
+        btnRestart.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            resetGame();
+        });
+
+        // マウスでも操作可能に（タッチデバイスのテスト用）
+        btnLeft.addEventListener('mousedown', () => keys.left = true);
+        btnLeft.addEventListener('mouseup', () => keys.left = false);
+        btnLeft.addEventListener('mouseleave', () => keys.left = false);
+        btnRight.addEventListener('mousedown', () => keys.right = true);
+        btnRight.addEventListener('mouseup', () => keys.right = false);
+        btnRight.addEventListener('mouseleave', () => keys.right = false);
+        btnFire.addEventListener('click', () => {
+            if (!gameOver && !gameWon) {
+                bullets.push({
+                    x: player.x + player.width / 2 - 2,
+                    y: player.y - 15
+                });
+            }
+        });
+        btnRestart.addEventListener('click', resetGame);
 
         // ゲーム開始
         initInvaders();
