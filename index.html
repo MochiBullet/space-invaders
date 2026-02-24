@@ -229,6 +229,10 @@
         let gameWon = false;
         let gameStarted = false;
         let titleBlink = 0;
+        const maxLives = 5;
+        let lives = maxLives;
+        let invincible = false;
+        let invincibleTimer = 0;
 
         // プレイヤー
         const player = {
@@ -368,6 +372,9 @@
             gameOver = false;
             gameWon = false;
             killCount = 0;
+            lives = maxLives;
+            invincible = false;
+            invincibleTimer = 0;
             player.x = canvas.width / 2 - 25;
             bullets = [];
             enemyBullets = [];
@@ -379,9 +386,27 @@
 
         // プレイヤー描画
         function drawPlayer() {
+            // 無敵中は点滅
+            if (invincible && Math.floor(invincibleTimer / 4) % 2 === 0) return;
             ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.width, player.height);
             ctx.fillRect(player.x + 20, player.y - 10, 10, 10);
+        }
+
+        // ライフ表示
+        function drawLives() {
+            for (let i = 0; i < maxLives; i++) {
+                const x = 10 + i * 22;
+                const y = canvas.height - 18;
+                if (i < lives) {
+                    ctx.fillStyle = '#0f0';
+                } else {
+                    ctx.fillStyle = '#333';
+                }
+                // 小さな自機アイコン
+                ctx.fillRect(x, y, 16, 6);
+                ctx.fillRect(x + 6, y - 4, 4, 4);
+            }
         }
 
         // インベーダー描画
@@ -452,7 +477,7 @@
                 invaders.forEach(invader => {
                     invader.y += 20;
                     if (invader.alive && invader.y + invader.height >= player.y) {
-                        gameOver = true;
+                        gameOver = true; // 敵が到達したら即死
                     }
                 });
             }
@@ -490,14 +515,23 @@
             // 死んだインベーダーを配列から除去（メモリ節約）
             invaders = invaders.filter(inv => inv.alive);
 
-            enemyBullets.forEach((bullet, index) => {
-                if (bullet.x < player.x + player.width &&
-                    bullet.x + 4 > player.x &&
-                    bullet.y < player.y + player.height &&
-                    bullet.y + 15 > player.y) {
-                    gameOver = true;
-                }
-            });
+            if (!invincible) {
+                enemyBullets.forEach((bullet, index) => {
+                    if (bullet.x < player.x + player.width &&
+                        bullet.x + 4 > player.x &&
+                        bullet.y < player.y + player.height &&
+                        bullet.y + 15 > player.y) {
+                        lives--;
+                        enemyBullets.splice(index, 1);
+                        if (lives <= 0) {
+                            gameOver = true;
+                        } else {
+                            invincible = true;
+                            invincibleTimer = 90; // 約1.5秒の無敵時間
+                        }
+                    }
+                });
+            }
 
             if (killCount >= totalEnemies) {
                 gameWon = true;
@@ -533,11 +567,22 @@
                 invaderShoot();
                 checkCollisions();
                 replenishInvaders();
+
+                // 無敵タイマー
+                if (invincible) {
+                    invincibleTimer--;
+                    if (invincibleTimer <= 0) {
+                        invincible = false;
+                    }
+                }
             }
 
             drawPlayer();
             drawInvaders();
             drawBullets();
+
+            // ライフ表示
+            drawLives();
 
             scoreElement.textContent = `SCORE: ${score}  [${killCount}/${totalEnemies}]`;
 
