@@ -9,38 +9,46 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            touch-action: manipulation;
+            touch-action: none;
+            -webkit-touch-callout: none;
         }
         html, body {
             height: 100%;
             overflow: hidden;
+            background: #000;
         }
         body {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: #000;
+            height: 100vh;
+            height: 100dvh;
             font-family: 'Courier New', monospace;
             user-select: none;
             -webkit-user-select: none;
         }
-        #gameContainer {
-            text-align: center;
-            width: 100%;
-            max-width: 600px;
-            padding: 10px;
+
+        /* === ゲームエリア（上部） === */
+        #gameArea {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 0;
+            padding: 4px 4px 0;
         }
         #score {
             color: #0f0;
-            font-size: clamp(18px, 5vw, 24px);
-            margin-bottom: 10px;
+            font-size: 18px;
+            padding: 4px 0;
+            text-align: center;
+            flex-shrink: 0;
         }
         #canvasWrapper {
-            position: relative;
+            flex: 1;
             width: 100%;
-            padding-bottom: 83.33%;
+            max-width: 600px;
+            position: relative;
+            min-height: 0;
         }
         #gameCanvas {
             position: absolute;
@@ -53,31 +61,65 @@
         }
         #message {
             color: #0f0;
-            font-size: clamp(12px, 3vw, 16px);
-            margin-top: 10px;
-            min-height: 20px;
+            font-size: 14px;
+            padding: 6px 0;
+            text-align: center;
+            flex-shrink: 0;
         }
+
+        /* === コントローラー（下部固定） === */
         #controls {
             display: none;
+            flex-shrink: 0;
+            width: 100%;
+            padding: 12px 16px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            background: rgba(10, 10, 10, 0.95);
+            border-top: 1px solid #222;
+        }
+        #controlsInner {
+            display: flex;
             justify-content: space-between;
             align-items: center;
-            width: 100%;
-            max-width: 600px;
-            margin-top: 15px;
-            padding: 0 10px;
+            max-width: 500px;
+            margin: 0 auto;
         }
-        .control-group {
+
+        /* 左側：方向ボタン */
+        .dpad {
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            align-items: center;
         }
-        .btn {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
+        .btn-dir {
+            width: 72px;
+            height: 72px;
+            border-radius: 16px;
             border: 3px solid #0f0;
-            background: rgba(0, 255, 0, 0.1);
+            background: rgba(0, 255, 0, 0.08);
             color: #0f0;
-            font-size: 28px;
+            font-size: 32px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.05s, transform 0.05s;
+        }
+        .btn-dir:active, .btn-dir.active {
+            background: rgba(0, 255, 0, 0.35);
+            transform: scale(0.93);
+        }
+
+        /* 中央：リスタート */
+        .btn-restart {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid #555;
+            background: rgba(255, 255, 255, 0.05);
+            color: #555;
+            font-size: 16px;
             font-weight: bold;
             display: flex;
             justify-content: center;
@@ -85,54 +127,77 @@
             cursor: pointer;
             transition: background 0.1s;
         }
-        .btn:active, .btn.active {
-            background: rgba(0, 255, 0, 0.4);
-        }
-        .btn-fire {
-            width: 90px;
-            height: 90px;
-            border-color: #f00;
-            background: rgba(255, 0, 0, 0.1);
-            color: #f00;
-            font-size: 16px;
-        }
-        .btn-fire:active, .btn-fire.active {
-            background: rgba(255, 0, 0, 0.4);
-        }
-        .btn-restart {
-            width: 50px;
-            height: 50px;
-            font-size: 20px;
+        .btn-restart:active {
+            background: rgba(255, 255, 0, 0.3);
             border-color: #ff0;
-            background: rgba(255, 255, 0, 0.1);
             color: #ff0;
         }
-        .btn-restart:active {
-            background: rgba(255, 255, 0, 0.4);
+
+        /* 右側：発射ボタン */
+        .btn-fire {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            border: 3px solid #f44;
+            background: rgba(255, 50, 50, 0.1);
+            color: #f44;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.05s, transform 0.05s;
         }
+        .btn-fire:active, .btn-fire.active {
+            background: rgba(255, 50, 50, 0.4);
+            transform: scale(0.93);
+        }
+
+        /* === タッチデバイスでコントローラー表示 === */
         @media (pointer: coarse) {
             #controls {
-                display: flex;
+                display: block;
             }
             #message {
                 display: none;
             }
         }
-        @media (max-width: 400px) {
-            .btn {
+
+        /* === PC向け（コントローラー非表示） === */
+        @media (pointer: fine) {
+            #gameArea {
+                justify-content: center;
+                padding: 10px;
+            }
+            #canvasWrapper {
+                flex: none;
+                max-width: 600px;
+                aspect-ratio: 6 / 5;
+                width: 100%;
+            }
+        }
+
+        /* === 横画面対策 === */
+        @media (orientation: landscape) and (pointer: coarse) {
+            #controls {
+                padding: 8px 24px;
+            }
+            .btn-dir {
                 width: 60px;
                 height: 60px;
-                font-size: 24px;
+                font-size: 26px;
             }
             .btn-fire {
-                width: 75px;
-                height: 75px;
+                width: 72px;
+                height: 72px;
             }
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
+    <div id="gameArea">
         <div id="score">SCORE: 0</div>
         <div id="canvasWrapper">
             <canvas id="gameCanvas" width="600" height="500"></canvas>
@@ -140,18 +205,23 @@
         <div id="message">Arrow keys to move / Space to fire / R to restart</div>
     </div>
     <div id="controls">
-        <div class="control-group">
-            <button class="btn" id="btnLeft">&#9664;</button>
-            <button class="btn" id="btnRight">&#9654;</button>
+        <div id="controlsInner">
+            <div class="dpad">
+                <button class="btn-dir" id="btnLeft">&#9664;</button>
+                <button class="btn-dir" id="btnRight">&#9654;</button>
+            </div>
+            <button class="btn-restart" id="btnRestart">R</button>
+            <button class="btn-fire" id="btnFire">FIRE</button>
         </div>
-        <button class="btn btn-restart" id="btnRestart">R</button>
-        <button class="btn btn-fire" id="btnFire">FIRE</button>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
         const messageElement = document.getElementById('message');
+
+        // タッチデバイス判定
+        const isTouchDevice = matchMedia('(pointer: coarse)').matches;
 
         // ゲーム状態
         let score = 0;
@@ -241,13 +311,21 @@
             if (Math.sin(titleBlink) > -0.3) {
                 ctx.fillStyle = '#ff0';
                 ctx.font = '22px Courier New';
-                ctx.fillText('PRESS SPACE TO START', canvas.width / 2, 380);
+                if (isTouchDevice) {
+                    ctx.fillText('TAP TO START', canvas.width / 2, 380);
+                } else {
+                    ctx.fillText('PRESS SPACE TO START', canvas.width / 2, 380);
+                }
             }
 
             // 操作説明
             ctx.fillStyle = '#888';
             ctx.font = '14px Courier New';
-            ctx.fillText('Arrow Keys: Move / Space: Fire / R: Restart', canvas.width / 2, 440);
+            if (isTouchDevice) {
+                ctx.fillText('Use buttons below to play', canvas.width / 2, 440);
+            } else {
+                ctx.fillText('Arrow Keys: Move / Space: Fire / R: Restart', canvas.width / 2, 440);
+            }
 
             ctx.textAlign = 'left';
         }
@@ -397,12 +475,22 @@
             }
         }
 
+        // 弾を発射
+        function fireBullet() {
+            if (!gameOver && !gameWon && gameStarted) {
+                bullets.push({
+                    x: player.x + player.width / 2 - 2,
+                    y: player.y - 15
+                });
+            }
+        }
+
         // ゲームループ
         function gameLoop() {
             if (!gameStarted) {
                 drawTitleScreen();
                 scoreElement.textContent = 'SPACE INVADERS';
-                messageElement.textContent = 'Press Space to start';
+                messageElement.textContent = isTouchDevice ? 'Tap to start' : 'Press Space to start';
                 requestAnimationFrame(gameLoop);
                 return;
             }
@@ -442,7 +530,7 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // キーイベント
+        // === キーボード操作 ===
         let canShoot = true;
         document.addEventListener('keydown', (e) => {
             if (!gameStarted) {
@@ -454,11 +542,8 @@
             }
             if (e.key === 'ArrowLeft') keys.left = true;
             if (e.key === 'ArrowRight') keys.right = true;
-            if (e.key === ' ' && canShoot && !gameOver && !gameWon) {
-                bullets.push({
-                    x: player.x + player.width / 2 - 2,
-                    y: player.y - 15
-                });
+            if (e.key === ' ' && canShoot) {
+                fireBullet();
                 canShoot = false;
             }
             if (e.key === 'r' || e.key === 'R') {
@@ -473,70 +558,60 @@
             if (e.key === ' ') canShoot = true;
         });
 
-        // タッチ操作
+        // === タッチ操作 ===
         const btnLeft = document.getElementById('btnLeft');
         const btnRight = document.getElementById('btnRight');
         const btnFire = document.getElementById('btnFire');
         const btnRestart = document.getElementById('btnRestart');
 
-        function addTouchEvents(btn, keyName) {
+        function addDirTouch(btn, keyName) {
             btn.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 keys[keyName] = true;
                 btn.classList.add('active');
-            });
+            }, { passive: false });
             btn.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 keys[keyName] = false;
                 btn.classList.remove('active');
-            });
-            btn.addEventListener('touchcancel', (e) => {
+            }, { passive: false });
+            btn.addEventListener('touchcancel', () => {
                 keys[keyName] = false;
                 btn.classList.remove('active');
             });
         }
 
-        addTouchEvents(btnLeft, 'left');
-        addTouchEvents(btnRight, 'right');
+        addDirTouch(btnLeft, 'left');
+        addDirTouch(btnRight, 'right');
 
+        // 発射ボタン（連打対応）
         btnFire.addEventListener('touchstart', (e) => {
             e.preventDefault();
             btnFire.classList.add('active');
-            if (!gameOver && !gameWon) {
-                bullets.push({
-                    x: player.x + player.width / 2 - 2,
-                    y: player.y - 15
-                });
-            }
-        });
+            fireBullet();
+        }, { passive: false });
         btnFire.addEventListener('touchend', (e) => {
             e.preventDefault();
             btnFire.classList.remove('active');
-        });
+        }, { passive: false });
 
+        // リスタート
         btnRestart.addEventListener('touchstart', (e) => {
             e.preventDefault();
             resetGame();
-        });
+        }, { passive: false });
 
-        // マウスでも操作可能に（タッチデバイスのテスト用）
+        // マウス操作（PC用）
         btnLeft.addEventListener('mousedown', () => keys.left = true);
         btnLeft.addEventListener('mouseup', () => keys.left = false);
         btnLeft.addEventListener('mouseleave', () => keys.left = false);
         btnRight.addEventListener('mousedown', () => keys.right = true);
         btnRight.addEventListener('mouseup', () => keys.right = false);
         btnRight.addEventListener('mouseleave', () => keys.right = false);
-        btnFire.addEventListener('click', () => {
-            if (!gameOver && !gameWon) {
-                bullets.push({
-                    x: player.x + player.width / 2 - 2,
-                    y: player.y - 15
-                });
-            }
-        });
+        btnFire.addEventListener('click', fireBullet);
         btnRestart.addEventListener('click', resetGame);
 
-        // タッチでもスタート可能に
+        // タッチでスタート
         canvas.addEventListener('click', () => {
             if (!gameStarted) startGame();
         });
@@ -545,7 +620,11 @@
                 e.preventDefault();
                 startGame();
             }
-        });
+        }, { passive: false });
+
+        // ページスクロール・ズーム完全防止
+        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
 
         // ゲーム開始
         gameLoop();
