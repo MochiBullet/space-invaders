@@ -72,87 +72,114 @@
             display: none;
             flex-shrink: 0;
             width: 100%;
-            padding: 12px 16px;
-            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            padding: 8px 0;
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
             background: rgba(10, 10, 10, 0.95);
             border-top: 1px solid #222;
         }
         #controlsInner {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            max-width: 500px;
-            margin: 0 auto;
+            align-items: stretch;
+            width: 100%;
         }
 
-        /* 左側：方向ボタン */
-        .dpad {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
+        /* 左側：左ボタン */
         .btn-dir {
-            width: 72px;
-            height: 72px;
-            border-radius: 16px;
-            border: 3px solid #0f0;
+            flex: 1;
+            height: 90px;
+            border: none;
+            border-right: 1px solid #333;
             background: rgba(0, 255, 0, 0.08);
             color: #0f0;
-            font-size: 32px;
+            font-size: 40px;
             font-weight: bold;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            transition: background 0.05s, transform 0.05s;
+            transition: background 0.05s;
         }
         .btn-dir:active, .btn-dir.active {
             background: rgba(0, 255, 0, 0.35);
-            transform: scale(0.93);
-        }
-
-        /* 中央：リスタート */
-        .btn-restart {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            border: 2px solid #555;
-            background: rgba(255, 255, 255, 0.05);
-            color: #555;
-            font-size: 16px;
-            font-weight: bold;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: background 0.1s;
-        }
-        .btn-restart:active {
-            background: rgba(255, 255, 0, 0.3);
-            border-color: #ff0;
-            color: #ff0;
         }
 
         /* 右側：発射ボタン */
         .btn-fire {
-            width: 88px;
-            height: 88px;
-            border-radius: 50%;
-            border: 3px solid #f44;
+            flex: 1;
+            height: 90px;
+            border: none;
+            border-left: 1px solid #333;
             background: rgba(255, 50, 50, 0.1);
             color: #f44;
-            font-size: 14px;
+            font-size: 18px;
             font-weight: bold;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
-            transition: background 0.05s, transform 0.05s;
+            transition: background 0.05s;
         }
         .btn-fire:active, .btn-fire.active {
             background: rgba(255, 50, 50, 0.4);
-            transform: scale(0.93);
+        }
+
+        /* リスタート確認モーダル */
+        #restartModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #restartModal.show {
+            display: flex;
+        }
+        .modal-content {
+            background: #111;
+            border: 2px solid #0f0;
+            padding: 30px;
+            text-align: center;
+            max-width: 300px;
+        }
+        .modal-content p {
+            color: #0f0;
+            font-size: 20px;
+            margin-bottom: 25px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        .modal-btn {
+            padding: 12px 30px;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid;
+            background: transparent;
+        }
+        .modal-btn-yes {
+            color: #0f0;
+            border-color: #0f0;
+        }
+        .modal-btn-yes:active {
+            background: rgba(0, 255, 0, 0.3);
+        }
+        .modal-btn-no {
+            color: #f44;
+            border-color: #f44;
+        }
+        .modal-btn-no:active {
+            background: rgba(255, 68, 68, 0.3);
         }
 
         /* === タッチデバイスでコントローラー表示 === */
@@ -181,17 +208,8 @@
 
         /* === 横画面対策 === */
         @media (orientation: landscape) and (pointer: coarse) {
-            #controls {
-                padding: 8px 24px;
-            }
-            .btn-dir {
-                width: 60px;
-                height: 60px;
-                font-size: 26px;
-            }
-            .btn-fire {
-                width: 72px;
-                height: 72px;
+            .btn-dir, .btn-fire {
+                height: 70px;
             }
         }
     </style>
@@ -206,12 +224,18 @@
     </div>
     <div id="controls">
         <div id="controlsInner">
-            <div class="dpad">
-                <button class="btn-dir" id="btnLeft">&#9664;</button>
-                <button class="btn-dir" id="btnRight">&#9654;</button>
-            </div>
-            <button class="btn-restart" id="btnRestart">R</button>
+            <button class="btn-dir" id="btnLeft">&#9664;</button>
+            <button class="btn-dir" id="btnRight">&#9654;</button>
             <button class="btn-fire" id="btnFire">FIRE</button>
+        </div>
+    </div>
+    <div id="restartModal">
+        <div class="modal-content">
+            <p>リスタートしますか？</p>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-yes" id="btnYes">はい</button>
+                <button class="modal-btn modal-btn-no" id="btnNo">いいえ</button>
+            </div>
         </div>
     </div>
     <script>
@@ -415,14 +439,20 @@
         const invaderWidth = 40;
         const invaderHeight = 30;
         let invaderDirection = 1;
-        let invaderSpeed = 1;
+        // スマホは敵の速度を遅くする
+        const baseInvaderSpeed = isTouchDevice ? 0.3 : 1;
+        let invaderSpeed = baseInvaderSpeed;
         const totalEnemies = 100;
         let killCount = 0;
         let spawnedCount = 0;
 
         // インベーダーの弾
         let enemyBullets = [];
-        const enemyBulletSpeed = 1.5;
+        const baseEnemyBulletSpeed = isTouchDevice ? 0.8 : 1.5;
+        const enemyBulletSpeed = baseEnemyBulletSpeed;
+
+        // リスタート確認モーダル
+        let showRestartModal = false;
 
         // ボス
         let boss = null;
@@ -554,7 +584,7 @@
             bullets = [];
             enemyBullets = [];
             invaderDirection = 1;
-            invaderSpeed = 1;
+            invaderSpeed = baseInvaderSpeed;
             boss = null;
             bossPhase = false;
             bossAttackTimer = 0;
@@ -980,6 +1010,9 @@
                 ctx.font = '48px Courier New';
                 ctx.textAlign = 'center';
                 ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+                ctx.font = '18px Courier New';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(isTouchDevice ? 'Tap to restart' : 'Press R to restart', canvas.width / 2, canvas.height / 2 + 40);
                 ctx.textAlign = 'left';
                 messageElement.textContent = 'R to restart';
             } else if (gameWon) {
@@ -989,6 +1022,9 @@
                 ctx.fillText('YOU WIN!', canvas.width / 2, canvas.height / 2);
                 ctx.font = '24px Courier New';
                 ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 40);
+                ctx.font = '18px Courier New';
+                ctx.fillStyle = '#fff';
+                ctx.fillText(isTouchDevice ? 'Tap to restart' : 'Press R to restart', canvas.width / 2, canvas.height / 2 + 70);
                 ctx.textAlign = 'left';
                 messageElement.textContent = 'R to restart';
             }
@@ -996,9 +1032,50 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // モーダル操作
+        const restartModal = document.getElementById('restartModal');
+        const btnYes = document.getElementById('btnYes');
+        const btnNo = document.getElementById('btnNo');
+
+        function showModal() {
+            showRestartModal = true;
+            restartModal.classList.add('show');
+        }
+
+        function hideModal() {
+            showRestartModal = false;
+            restartModal.classList.remove('show');
+        }
+
+        function confirmRestart() {
+            hideModal();
+            resetGame();
+        }
+
+        btnYes.addEventListener('click', confirmRestart);
+        btnYes.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            confirmRestart();
+        }, { passive: false });
+
+        btnNo.addEventListener('click', hideModal);
+        btnNo.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            hideModal();
+        }, { passive: false });
+
         // === キーボード操作 ===
         let canShoot = true;
         document.addEventListener('keydown', (e) => {
+            if (showRestartModal) {
+                if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
+                    confirmRestart();
+                } else if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') {
+                    hideModal();
+                }
+                e.preventDefault();
+                return;
+            }
             if (!gameStarted) {
                 if (e.key === ' ' || e.key === 'Enter') {
                     startGame();
@@ -1013,7 +1090,7 @@
                 canShoot = false;
             }
             if (e.key === 'r' || e.key === 'R') {
-                resetGame();
+                showModal();
             }
             e.preventDefault();
         });
@@ -1028,7 +1105,6 @@
         const btnLeft = document.getElementById('btnLeft');
         const btnRight = document.getElementById('btnRight');
         const btnFire = document.getElementById('btnFire');
-        const btnRestart = document.getElementById('btnRestart');
 
         function addDirTouch(btn, keyName) {
             btn.addEventListener('touchstart', (e) => {
@@ -1061,12 +1137,6 @@
             btnFire.classList.remove('active');
         }, { passive: false });
 
-        // リスタート
-        btnRestart.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            resetGame();
-        }, { passive: false });
-
         // マウス操作（PC用）
         btnLeft.addEventListener('mousedown', () => keys.left = true);
         btnLeft.addEventListener('mouseup', () => keys.left = false);
@@ -1075,16 +1145,22 @@
         btnRight.addEventListener('mouseup', () => keys.right = false);
         btnRight.addEventListener('mouseleave', () => keys.right = false);
         btnFire.addEventListener('click', fireBullet);
-        btnRestart.addEventListener('click', resetGame);
 
-        // タッチでスタート
+        // タッチでスタート / ゲームオーバー時はリスタートモーダル
         canvas.addEventListener('click', () => {
-            if (!gameStarted) startGame();
+            if (!gameStarted) {
+                startGame();
+            } else if (gameOver || gameWon) {
+                showModal();
+            }
         });
         canvas.addEventListener('touchstart', (e) => {
             if (!gameStarted) {
                 e.preventDefault();
                 startGame();
+            } else if (gameOver || gameWon) {
+                e.preventDefault();
+                showModal();
             }
         }, { passive: false });
 
