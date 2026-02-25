@@ -334,6 +334,56 @@
             osc.stop(audioCtx.currentTime + 0.15);
         }
 
+        // ボス登場音
+        function playBossAppear() {
+            if (!audioCtx) return;
+            for (let i = 0; i < 3; i++) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100 + i * 50, audioCtx.currentTime + i * 0.2);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime + i * 0.2);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.2 + 0.2);
+                osc.start(audioCtx.currentTime + i * 0.2);
+                osc.stop(audioCtx.currentTime + i * 0.2 + 0.2);
+            }
+        }
+
+        // ボス撃破音
+        function playBossDefeat() {
+            if (!audioCtx) return;
+            for (let i = 0; i < 8; i++) {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300 - i * 30, audioCtx.currentTime + i * 0.08);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.08 + 0.1);
+                osc.start(audioCtx.currentTime + i * 0.08);
+                osc.stop(audioCtx.currentTime + i * 0.08 + 0.1);
+            }
+        }
+
+        // ハート取得音
+        function playHeart() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
         // ゲーム状態
         let score = 0;
         let gameOver = false;
@@ -373,6 +423,18 @@
         // インベーダーの弾
         let enemyBullets = [];
         const enemyBulletSpeed = 1.5;
+
+        // ボス
+        let boss = null;
+        let bossPhase = false;
+        const bossMaxHp = 100;
+        let bossAttackTimer = 0;
+        const bossAttackInterval = 180; // 約3秒
+
+        // ハートアイテム
+        let hearts = [];
+        const heartSpeed = 2;
+        let heartSpawnTimer = 0;
 
         // キー入力
         const keys = {
@@ -493,6 +555,11 @@
             enemyBullets = [];
             invaderDirection = 1;
             invaderSpeed = 1;
+            boss = null;
+            bossPhase = false;
+            bossAttackTimer = 0;
+            hearts = [];
+            heartSpawnTimer = 0;
             initInvaders();
             messageElement.textContent = 'Arrow keys to move / Space to fire / R to restart';
         }
@@ -549,6 +616,135 @@
             });
         }
 
+        // ボス出現
+        function spawnBoss() {
+            bossPhase = true;
+            boss = {
+                x: canvas.width / 2 - 75,
+                y: 30,
+                width: 150,
+                height: 80,
+                hp: bossMaxHp,
+                direction: 1,
+                speed: 0.5
+            };
+            invaders = [];
+            enemyBullets = [];
+            playBossAppear();
+        }
+
+        // ボス描画
+        function drawBoss() {
+            if (!boss) return;
+
+            // 本体（大きな四角）
+            ctx.fillStyle = '#f0f';
+            ctx.fillRect(boss.x + 20, boss.y + 20, boss.width - 40, boss.height - 30);
+
+            // 上部の突起
+            ctx.fillRect(boss.x + 10, boss.y, 30, 25);
+            ctx.fillRect(boss.x + boss.width - 40, boss.y, 30, 25);
+            ctx.fillRect(boss.x + 60, boss.y + 5, 30, 20);
+
+            // 目
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(boss.x + 40, boss.y + 35, 20, 15);
+            ctx.fillRect(boss.x + 90, boss.y + 35, 20, 15);
+            ctx.fillStyle = '#f00';
+            ctx.fillRect(boss.x + 45, boss.y + 40, 10, 10);
+            ctx.fillRect(boss.x + 95, boss.y + 40, 10, 10);
+
+            // 下部の足
+            ctx.fillStyle = '#f0f';
+            ctx.fillRect(boss.x, boss.y + 60, 25, 20);
+            ctx.fillRect(boss.x + 40, boss.y + 65, 20, 15);
+            ctx.fillRect(boss.x + 90, boss.y + 65, 20, 15);
+            ctx.fillRect(boss.x + boss.width - 25, boss.y + 60, 25, 20);
+
+            // HPバー
+            const hpBarWidth = 140;
+            const hpRatio = boss.hp / bossMaxHp;
+            ctx.fillStyle = '#333';
+            ctx.fillRect(boss.x + 5, boss.y - 15, hpBarWidth, 10);
+            ctx.fillStyle = hpRatio > 0.3 ? '#0f0' : '#f00';
+            ctx.fillRect(boss.x + 5, boss.y - 15, hpBarWidth * hpRatio, 10);
+            ctx.strokeStyle = '#fff';
+            ctx.strokeRect(boss.x + 5, boss.y - 15, hpBarWidth, 10);
+        }
+
+        // ボス移動
+        function moveBoss() {
+            if (!boss) return;
+            boss.x += boss.speed * boss.direction;
+            if (boss.x <= 10 || boss.x + boss.width >= canvas.width - 10) {
+                boss.direction *= -1;
+            }
+        }
+
+        // ボス攻撃（弾をまき散らす）
+        function bossAttack() {
+            if (!boss) return;
+            bossAttackTimer++;
+            if (bossAttackTimer >= bossAttackInterval) {
+                bossAttackTimer = 0;
+                // 8方向に弾を発射
+                const centerX = boss.x + boss.width / 2;
+                const centerY = boss.y + boss.height;
+                for (let i = 0; i < 12; i++) {
+                    const angle = (Math.PI / 12) * i + Math.PI / 12;
+                    enemyBullets.push({
+                        x: centerX,
+                        y: centerY,
+                        vx: Math.cos(angle) * 2,
+                        vy: Math.sin(angle) * 2.5,
+                        isBossBullet: true
+                    });
+                }
+            }
+        }
+
+        // ハート生成
+        function spawnHeart() {
+            heartSpawnTimer++;
+            // 約5秒に1回ハートを生成
+            if (heartSpawnTimer >= 300) {
+                heartSpawnTimer = 0;
+                if (Math.random() < 0.5) {
+                    hearts.push({
+                        x: Math.random() * (canvas.width - 30) + 15,
+                        y: -20,
+                        size: 20
+                    });
+                }
+            }
+        }
+
+        // ハート描画
+        function drawHearts() {
+            hearts.forEach(heart => {
+                ctx.fillStyle = '#f55';
+                // ハート形を描画
+                const x = heart.x;
+                const y = heart.y;
+                const s = heart.size;
+                ctx.beginPath();
+                ctx.moveTo(x, y + s * 0.3);
+                ctx.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3);
+                ctx.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.9, x, y + s);
+                ctx.bezierCurveTo(x, y + s * 0.9, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3);
+                ctx.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3);
+                ctx.fill();
+            });
+        }
+
+        // ハート移動
+        function moveHearts() {
+            hearts = hearts.filter(heart => {
+                heart.y += heartSpeed;
+                return heart.y < canvas.height + 30;
+            });
+        }
+
         // プレイヤー移動
         function movePlayer() {
             if (keys.left && player.x > 0) {
@@ -567,8 +763,14 @@
             });
 
             enemyBullets = enemyBullets.filter(bullet => {
-                bullet.y += enemyBulletSpeed;
-                return bullet.y < canvas.height;
+                if (bullet.isBossBullet) {
+                    bullet.x += bullet.vx;
+                    bullet.y += bullet.vy;
+                    return bullet.y < canvas.height && bullet.x > 0 && bullet.x < canvas.width;
+                } else {
+                    bullet.y += enemyBulletSpeed;
+                    return bullet.y < canvas.height;
+                }
             });
         }
 
@@ -612,26 +814,59 @@
         // 衝突判定
         function checkCollisions() {
             let enemyKilled = false;
-            bullets.forEach((bullet, bulletIndex) => {
-                invaders.forEach(invader => {
-                    if (invader.alive &&
-                        bullet.x < invader.x + invader.width &&
-                        bullet.x + 4 > invader.x &&
-                        bullet.y < invader.y + invader.height &&
-                        bullet.y + 15 > invader.y) {
-                        invader.alive = false;
+
+            // ボス戦の場合
+            if (bossPhase && boss) {
+                bullets.forEach((bullet, bulletIndex) => {
+                    if (bullet.x < boss.x + boss.width &&
+                        bullet.x + 4 > boss.x &&
+                        bullet.y < boss.y + boss.height &&
+                        bullet.y + 15 > boss.y) {
                         bullets.splice(bulletIndex, 1);
-                        score += 100;
-                        killCount++;
-                        enemyKilled = true;
+                        boss.hp--;
+                        score += 10;
+                        if (boss.hp <= 0) {
+                            // ボス撃破
+                            playBossDefeat();
+                            score += 5000;
+                            boss = null;
+                            bossPhase = false;
+                            gameWon = true;
+                            playWin();
+                        } else {
+                            playExplosion();
+                        }
                     }
                 });
-            });
-            if (enemyKilled) playExplosion();
+            } else {
+                // 通常の敵
+                bullets.forEach((bullet, bulletIndex) => {
+                    invaders.forEach(invader => {
+                        if (invader.alive &&
+                            bullet.x < invader.x + invader.width &&
+                            bullet.x + 4 > invader.x &&
+                            bullet.y < invader.y + invader.height &&
+                            bullet.y + 15 > invader.y) {
+                            invader.alive = false;
+                            bullets.splice(bulletIndex, 1);
+                            score += 100;
+                            killCount++;
+                            enemyKilled = true;
+                        }
+                    });
+                });
+                if (enemyKilled) playExplosion();
 
-            // 死んだインベーダーを配列から除去（メモリ節約）
-            invaders = invaders.filter(inv => inv.alive);
+                // 死んだインベーダーを配列から除去
+                invaders = invaders.filter(inv => inv.alive);
 
+                // 100体倒したらボス出現
+                if (killCount >= totalEnemies && !bossPhase) {
+                    spawnBoss();
+                }
+            }
+
+            // プレイヤーへのダメージ判定
             if (!invincible) {
                 enemyBullets.forEach((bullet, index) => {
                     if (bullet.x < player.x + player.width &&
@@ -639,23 +874,35 @@
                         bullet.y < player.y + player.height &&
                         bullet.y + 15 > player.y) {
                         lives--;
+                        score = Math.floor(score / 2); // ダメージでスコア半分
                         enemyBullets.splice(index, 1);
                         if (lives <= 0) {
                             gameOver = true;
                             playGameOver();
                         } else {
                             invincible = true;
-                            invincibleTimer = 90; // 約1.5秒の無敵時間
+                            invincibleTimer = 90;
                             playHit();
                         }
                     }
                 });
             }
 
-            if (killCount >= totalEnemies && !gameWon) {
-                gameWon = true;
-                playWin();
-            }
+            // ハート取得判定
+            hearts.forEach((heart, index) => {
+                const hx = heart.x;
+                const hy = heart.y;
+                const px = player.x + player.width / 2;
+                const py = player.y + player.height / 2;
+                const dist = Math.sqrt((hx - px) ** 2 + (hy - py) ** 2);
+                if (dist < 30) {
+                    hearts.splice(index, 1);
+                    if (lives < maxLives) {
+                        lives++;
+                        playHeart();
+                    }
+                }
+            });
         }
 
         // 弾を発射
@@ -684,10 +931,19 @@
             if (!gameOver && !gameWon) {
                 movePlayer();
                 moveBullets();
-                moveInvaders();
-                invaderShoot();
+                moveHearts();
+                spawnHeart();
+
+                if (bossPhase && boss) {
+                    moveBoss();
+                    bossAttack();
+                } else {
+                    moveInvaders();
+                    invaderShoot();
+                    replenishInvaders();
+                }
+
                 checkCollisions();
-                replenishInvaders();
 
                 // 無敵タイマー
                 if (invincible) {
@@ -699,13 +955,25 @@
             }
 
             drawPlayer();
-            drawInvaders();
+            if (bossPhase) {
+                drawBoss();
+            } else {
+                drawInvaders();
+            }
             drawBullets();
+            drawHearts();
 
             // ライフ表示
             drawLives();
 
-            scoreElement.textContent = `SCORE: ${score}  [${killCount}/${totalEnemies}]`;
+            // スコア表示
+            if (bossPhase && boss) {
+                scoreElement.textContent = `SCORE: ${score}  BOSS HP: ${boss.hp}/${bossMaxHp}`;
+            } else if (bossPhase) {
+                scoreElement.textContent = `SCORE: ${score}`;
+            } else {
+                scoreElement.textContent = `SCORE: ${score}  [${killCount}/${totalEnemies}]`;
+            }
 
             if (gameOver) {
                 ctx.fillStyle = '#f00';
@@ -719,6 +987,8 @@
                 ctx.font = '48px Courier New';
                 ctx.textAlign = 'center';
                 ctx.fillText('YOU WIN!', canvas.width / 2, canvas.height / 2);
+                ctx.font = '24px Courier New';
+                ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 40);
                 ctx.textAlign = 'left';
                 messageElement.textContent = 'R to restart';
             }
