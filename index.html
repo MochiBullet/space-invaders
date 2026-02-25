@@ -223,6 +223,117 @@
         // タッチデバイス判定
         const isTouchDevice = matchMedia('(pointer: coarse)').matches;
 
+        // === サウンドシステム ===
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 発射音
+        function playShoot() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // 敵撃破音
+        function playExplosion() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // ダメージ音
+        function playHit() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        // ゲームオーバー音
+        function playGameOver() {
+            if (!audioCtx) return;
+            const notes = [200, 180, 160, 100];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.15);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime + i * 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.15);
+                osc.start(audioCtx.currentTime + i * 0.15);
+                osc.stop(audioCtx.currentTime + i * 0.15 + 0.15);
+            });
+        }
+
+        // 勝利音
+        function playWin() {
+            if (!audioCtx) return;
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.12);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.12 + 0.2);
+                osc.start(audioCtx.currentTime + i * 0.12);
+                osc.stop(audioCtx.currentTime + i * 0.12 + 0.2);
+            });
+        }
+
+        // スタート音
+        function playStart() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
         // ゲーム状態
         let score = 0;
         let gameOver = false;
@@ -361,6 +472,8 @@
         // ゲームスタート
         function startGame() {
             if (!gameStarted) {
+                initAudio();
+                playStart();
                 gameStarted = true;
                 resetGame();
             }
@@ -476,8 +589,9 @@
                 invaderDirection *= -1;
                 invaders.forEach(invader => {
                     invader.y += 20;
-                    if (invader.alive && invader.y + invader.height >= player.y) {
+                    if (invader.alive && invader.y + invader.height >= player.y && !gameOver) {
                         gameOver = true; // 敵が到達したら即死
+                        playGameOver();
                     }
                 });
             }
@@ -497,6 +611,7 @@
 
         // 衝突判定
         function checkCollisions() {
+            let enemyKilled = false;
             bullets.forEach((bullet, bulletIndex) => {
                 invaders.forEach(invader => {
                     if (invader.alive &&
@@ -508,9 +623,11 @@
                         bullets.splice(bulletIndex, 1);
                         score += 100;
                         killCount++;
+                        enemyKilled = true;
                     }
                 });
             });
+            if (enemyKilled) playExplosion();
 
             // 死んだインベーダーを配列から除去（メモリ節約）
             invaders = invaders.filter(inv => inv.alive);
@@ -525,16 +642,19 @@
                         enemyBullets.splice(index, 1);
                         if (lives <= 0) {
                             gameOver = true;
+                            playGameOver();
                         } else {
                             invincible = true;
                             invincibleTimer = 90; // 約1.5秒の無敵時間
+                            playHit();
                         }
                     }
                 });
             }
 
-            if (killCount >= totalEnemies) {
+            if (killCount >= totalEnemies && !gameWon) {
                 gameWon = true;
+                playWin();
             }
         }
 
@@ -545,6 +665,7 @@
                     x: player.x + player.width / 2 - 2,
                     y: player.y - 15
                 });
+                playShoot();
             }
         }
 
