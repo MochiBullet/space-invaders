@@ -1047,6 +1047,13 @@
             restartModal.classList.remove('show');
         }
 
+        function backToTitle() {
+            hideModal();
+            gameStarted = false;
+            gameOver = false;
+            gameWon = false;
+        }
+
         function confirmRestart() {
             hideModal();
             resetGame();
@@ -1058,10 +1065,10 @@
             confirmRestart();
         }, { passive: false });
 
-        btnNo.addEventListener('click', hideModal);
+        btnNo.addEventListener('click', backToTitle);
         btnNo.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            hideModal();
+            backToTitle();
         }, { passive: false });
 
         // === キーボード操作 ===
@@ -1071,7 +1078,7 @@
                 if (e.key === 'Enter' || e.key === 'y' || e.key === 'Y') {
                     confirmRestart();
                 } else if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') {
-                    hideModal();
+                    backToTitle();
                 }
                 e.preventDefault();
                 return;
