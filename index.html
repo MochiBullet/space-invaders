@@ -408,6 +408,24 @@
             osc.stop(audioCtx.currentTime + 0.15);
         }
 
+        // パワーアップ取得音
+        function playPowerup() {
+            if (!audioCtx) return;
+            const notes = [660, 880, 1100];
+            notes.forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.06);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime + i * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.06 + 0.1);
+                osc.start(audioCtx.currentTime + i * 0.06);
+                osc.stop(audioCtx.currentTime + i * 0.06 + 0.1);
+            });
+        }
+
         // ゲーム状態
         let score = 0;
         let gameOver = false;
@@ -418,6 +436,13 @@
         let lives = maxLives;
         let invincible = false;
         let invincibleTimer = 0;
+
+        // パワーアップ（スプレッドショット）
+        let powerups = [];
+        let spreadShot = false;
+        let spreadTimer = 0;
+        const SPREAD_DURATION = 600; // 10秒 = 600フレーム
+        const POWERUP_DROP_RATE = 0.15; // 15%の確率でドロップ
 
         // プレイヤー
         const player = {
@@ -590,6 +615,9 @@
             bossAttackTimer = 0;
             hearts = [];
             heartSpawnTimer = 0;
+            powerups = [];
+            spreadShot = false;
+            spreadTimer = 0;
             initInvaders();
             messageElement.textContent = 'Arrow keys to move / Space to fire / R to restart';
         }
@@ -635,8 +663,8 @@
 
         // 弾描画
         function drawBullets() {
-            ctx.fillStyle = '#ff0';
             bullets.forEach(bullet => {
+                ctx.fillStyle = spreadShot ? '#0ff' : '#ff0';
                 ctx.fillRect(bullet.x, bullet.y, 4, 15);
             });
 
@@ -775,6 +803,69 @@
             });
         }
 
+        // パワーアップ描画
+        function drawPowerups() {
+            powerups.forEach(p => {
+                const pulse = Math.sin(Date.now() * 0.008) * 0.3 + 0.7;
+                ctx.save();
+                ctx.globalAlpha = pulse;
+                // 光る菱形
+                ctx.fillStyle = '#0ff';
+                ctx.translate(p.x + p.size / 2, p.y + p.size / 2);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+                // 中央に "S"
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 12px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('S', p.x + p.size / 2, p.y + p.size / 2 + 1);
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'alphabetic';
+            });
+        }
+
+        // パワーアップ移動
+        function movePowerups() {
+            powerups = powerups.filter(p => {
+                p.y += p.speed;
+                return p.y < canvas.height;
+            });
+        }
+
+        // パワーアップ取得判定
+        function checkPowerupCollisions() {
+            powerups = powerups.filter(p => {
+                if (p.x < player.x + player.width &&
+                    p.x + p.size > player.x &&
+                    p.y < player.y + player.height &&
+                    p.y + p.size > player.y) {
+                    spreadShot = true;
+                    spreadTimer = SPREAD_DURATION;
+                    playPowerup();
+                    return false;
+                }
+                return true;
+            });
+        }
+
+        // スプレッドショット残り時間バー
+        function drawSpreadTimer() {
+            if (!spreadShot) return;
+            const remaining = Math.ceil(spreadTimer / 60);
+            const barWidth = (spreadTimer / SPREAD_DURATION) * 100;
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+            ctx.fillRect(canvas.width - 114, canvas.height - 22, 104, 14);
+            ctx.fillStyle = '#0ff';
+            ctx.fillRect(canvas.width - 112, canvas.height - 20, barWidth, 10);
+            ctx.fillStyle = '#0ff';
+            ctx.font = '10px Courier New';
+            ctx.textAlign = 'right';
+            ctx.fillText(`SPREAD ${remaining}s`, canvas.width - 14, canvas.height - 11);
+            ctx.textAlign = 'left';
+        }
+
         // プレイヤー移動
         function movePlayer() {
             if (keys.left && player.x > 0) {
@@ -788,8 +879,9 @@
         // 弾移動
         function moveBullets() {
             bullets = bullets.filter(bullet => {
-                bullet.y -= bulletSpeed;
-                return bullet.y > 0;
+                bullet.x += (bullet.vx || 0);
+                bullet.y += (bullet.vy || -bulletSpeed);
+                return bullet.y > 0 && bullet.x > -10 && bullet.x < canvas.width + 10;
             });
 
             enemyBullets = enemyBullets.filter(bullet => {
@@ -877,6 +969,15 @@
                             bullet.x + 4 > invader.x &&
                             bullet.y < invader.y + invader.height &&
                             bullet.y + 15 > invader.y) {
+                            // パワーアップドロップ判定
+                            if (Math.random() < POWERUP_DROP_RATE) {
+                                powerups.push({
+                                    x: invader.x + invader.width / 2 - 8,
+                                    y: invader.y,
+                                    size: 16,
+                                    speed: 2
+                                });
+                            }
                             invader.alive = false;
                             bullets.splice(bulletIndex, 1);
                             score += 100;
@@ -938,10 +1039,15 @@
         // 弾を発射
         function fireBullet() {
             if (!gameOver && !gameWon && gameStarted) {
-                bullets.push({
-                    x: player.x + player.width / 2 - 2,
-                    y: player.y - 15
-                });
+                const cx = player.x + player.width / 2 - 2;
+                const cy = player.y - 15;
+                if (spreadShot) {
+                    bullets.push({ x: cx, y: cy, vx: 0, vy: -bulletSpeed });
+                    bullets.push({ x: cx, y: cy, vx: -3, vy: -bulletSpeed });
+                    bullets.push({ x: cx, y: cy, vx: 3, vy: -bulletSpeed });
+                } else {
+                    bullets.push({ x: cx, y: cy, vx: 0, vy: -bulletSpeed });
+                }
                 playShoot();
             }
         }
@@ -961,6 +1067,7 @@
             if (!gameOver && !gameWon) {
                 movePlayer();
                 moveBullets();
+                movePowerups();
                 moveHearts();
                 spawnHeart();
 
@@ -974,12 +1081,21 @@
                 }
 
                 checkCollisions();
+                checkPowerupCollisions();
 
                 // 無敵タイマー
                 if (invincible) {
                     invincibleTimer--;
                     if (invincibleTimer <= 0) {
                         invincible = false;
+                    }
+                }
+
+                // スプレッドショットタイマー
+                if (spreadShot) {
+                    spreadTimer--;
+                    if (spreadTimer <= 0) {
+                        spreadShot = false;
                     }
                 }
             }
@@ -991,10 +1107,12 @@
                 drawInvaders();
             }
             drawBullets();
+            drawPowerups();
             drawHearts();
 
             // ライフ表示
             drawLives();
+            drawSpreadTimer();
 
             // スコア表示
             if (bossPhase && boss) {
